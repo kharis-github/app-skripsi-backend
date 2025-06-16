@@ -26,5 +26,5 @@ def create_text(data: TextCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[TextRead])
 def list_texts(db: Session = Depends(get_db)):
     text =  db.query(Text).all()
-    print("[DEBUG] Data text = ", text)
+    print(f"[DEBUG] Data text = {text}")
     return text
