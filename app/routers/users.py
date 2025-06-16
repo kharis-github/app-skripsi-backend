@@ -25,4 +25,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=list[UserRead])
 def list_users(db: Session = Depends(get_db)):
-    return db.query(User).all()
+    users = db.query(User).all()
+    print(f"[DEBUG] Users from DB: {users}")  # log to console
+    return users
