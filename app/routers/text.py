@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.text import LabeledText, RawText
@@ -43,10 +44,10 @@ def create_text(data: TextCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[TextRead])
 def list_texts(db: Session = Depends(get_db)):
     text = db.query(LabeledText).all()
-    print(f"[DEBUG] Data text = {text}")
+    # print(f"[DEBUG] Data text = {text}")
     return text
 
-# TODO: upload data mentah
+# upload dataset penelitian dari excel untuk disimpan di database
 
 
 @router.post("/upload")
@@ -78,10 +79,10 @@ def list_texts(db: Session = Depends(get_db)):
     # print(f"[DEBUG] Data text = {text}")
     return text
 
-# klasifikasi sekumpulan teks. digunakan untuk proses simulasi penelitian
+# proses dan klasifikasi data penelitian untuk simulasi proses
 
 
-@router.post("/predict/batch")
+@router.post("/classify")
 async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # 1 | buka file excel upload, dan simpan di dalam pandas dataframe
     contents = await file.read()
@@ -92,31 +93,37 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     df = pd.read_excel(temp_path)
     df = df[['full_text', 'label']]
 
-    # # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
-    # slang_dict = get_slang_dict() # ambil dictionary slang words bahasa indonesia utk proses normalisasi
-    # df['cleaned_text'] = df['full_text'].apply(text_cleaning) # 2.a | text cleaning
-    # df['normalized'] = df['cleaned_text'].apply(lambda x: normalisasi(x, slang_dict)) # 2.b | normalisasi
-    # df['stopwords_removed'] = df['normalized'].apply(stopwords_removal) # 2.3 | stopwords removal
-    # df['stemmed'] = df['stopwords_removed'].apply(stemming) # 2.4 | stemming
+    # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
+    df = await text_preprocessing(df.head(10))  # DEBUG: sample 10 data
 
-    # gunakan fungsi text_preprocessing untuk memproses data untuk di-klasifikasi
-    df = await text_preprocessing(df)
+    # hapus data yang duplikat dan null
+    df = df.dropna(subset='stemming')  # hapus data null
+    df = df.drop_duplicates(subset='stemming')  # hapus data duplikat
+    df = df[df['stemming'] != '']  # hapus string kosong
+
+    # print(f'[DEBUG]: jumlah data: {len(df)}')
+    # print(df.head(10))
 
     # 3 | Vectorization & Classification
     # 3.a | Naive Bayes
     nb_results = nb_model.predict(df['stemming'])
+    # print('[DEBUG]: Hasil Klasifikasi NB')
+    # print(nb_results)
     # 3.b | Support Vector Machine
     svm_results = svm_model.predict(df['stemming'])
+    # print('[DEBUG]: Hasil Klasifikasi SVM')
+    # print(svm_results)
 
     # 4 | Model Evaluation
 
     os.remove(temp_path)  # hapus data temp file excel upload
 
+    # 4.a | konversi data df ke JSON
+    data = df.to_dict(orient="records")
+
     return {
-        "nb_classification": nb_results,  # hasil klasifikasi NB
-        "svm_classification": svm_results,  # hasil klasifikasi SVM
-        "cleaning": df['cleaning'],  # sample data cleaning
-        "normalized": df['normalized'],  # sample data normalized
-        "stopwords": df['stopwords'],  # sample data stopwords
-        "stemming": df['stemming'],  # sample data stemming
+        "nb_classification": nb_results.tolist(),  # hasil klasifikasi NB
+        "svm_classification": svm_results.tolist(),  # hasil klasifikasi SVM
+        "data": data,
+
     }
