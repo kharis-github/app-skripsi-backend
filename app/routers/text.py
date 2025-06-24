@@ -94,7 +94,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     df = df[['full_text', 'label']]
 
     # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
-    df = await text_preprocessing(df.head(10))  # DEBUG: sample 10 data
+    df = await text_preprocessing(df)
 
     # hapus data yang duplikat dan null
     df = df.dropna(subset='stemming')  # hapus data null
