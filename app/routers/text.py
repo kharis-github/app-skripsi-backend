@@ -93,6 +93,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
         f.write(contents)
 
     df = pd.read_excel(temp_path)
+    raw_df = df.fillna("")
     df = df[['full_text', 'label']]
 
     # hanya gunakan data yang positif atau negatif. netral diabaikan
@@ -101,7 +102,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     os.remove(temp_path)  # hapus data temp file excel upload
 
     # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
-    df = await text_preprocessing(df)
+    df = await text_preprocessing(df.head(20))
 
     # hapus data yang duplikat dan null
     df = df.dropna(subset='stemming')  # hapus data null
@@ -140,7 +141,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     # print(classification_report(y_test, svm_results, zero_division=0))
     # print(confusion_matrix(y_test, svm_results))
 
-    # TODO: format nilai evaluasi agar dapat ditampilkan di front-end
+    # format nilai evaluasi agar dapat ditampilkan di front-end
     nb_eval = {
         "accuracy": accuracy_score(y_test, nb_results),
         "classification_report": classification_report(y_test, nb_results, output_dict=True),
@@ -154,14 +155,25 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
 
     # 4.a | konversi data df ke JSON
     data = df.to_dict(orient="records")
+    raw_data = raw_df.to_dict(orient="records")
+
+    # 4.b | gabungkan data klasifikasi dengan data testing
+    df_csf = pd.DataFrame({
+        'text': X_test,
+        'true_label': y_test,
+        'pred_nb': nb_results,
+        'pred_svm': svm_results,
+    })
 
     # 5 | Return hasil
 
     return {
-        "nb_classification": nb_results.tolist(),  # hasil klasifikasi NB
-        "svm_classification": svm_results.tolist(),  # hasil klasifikasi SVM
+        # "nb_classification": nb_results.tolist(),  # hasil klasifikasi NB
+        # "svm_classification": svm_results.tolist(),  # hasil klasifikasi SVM
+        "classification": df_csf.to_dict(orient="records"),
         "nb_evaluation": nb_eval,  # evaluasi pengklasifikasian NB
         "svm_evaluation": svm_eval,  # evaluasi pengklasifikasian SVM
         "data": data,
+        "raw_data": raw_data,
 
     }
