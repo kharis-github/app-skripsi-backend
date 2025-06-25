@@ -11,6 +11,8 @@ import pyodbc
 import os
 import joblib
 from app.classification.text import text_cleaning, normalisasi, stopwords_removal, tokenize, stemming, get_slang_dict, text_preprocessing
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, precision_score, accuracy_score, confusion_matrix
 
 router = APIRouter(prefix="/text", tags=["Text"])
 
@@ -93,8 +95,13 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     df = pd.read_excel(temp_path)
     df = df[['full_text', 'label']]
 
+    # hanya gunakan data yang positif atau negatif. netral diabaikan
+    df = df[df['label'] != 2]
+
+    os.remove(temp_path)  # hapus data temp file excel upload
+
     # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
-    df = await text_preprocessing(df)
+    df = await text_preprocessing(df.head(20))
 
     # hapus data yang duplikat dan null
     df = df.dropna(subset='stemming')  # hapus data null
@@ -105,25 +112,56 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     # print(df.head(10))
 
     # 3 | Vectorization & Classification
+
+    # split data
+    X = df['stemming']
+    y = df['label']
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        # sama dengan konfigurasi app di model selection
+        X, y, test_size=0.33, random_state=42)
+
     # 3.a | Naive Bayes
-    nb_results = nb_model.predict(df['stemming'])
+    nb_results = nb_model.predict(X_test)
     # print('[DEBUG]: Hasil Klasifikasi NB')
     # print(nb_results)
     # 3.b | Support Vector Machine
-    svm_results = svm_model.predict(df['stemming'])
+    svm_results = svm_model.predict(X_test)
     # print('[DEBUG]: Hasil Klasifikasi SVM')
     # print(svm_results)
 
     # 4 | Model Evaluation
+    # print("[DEBUG]: Evaluasi Naive Bayes: ")
+    # print(accuracy_score(y_test, nb_results))
+    # print(classification_report(y_test, nb_results, zero_division=0))
+    # print(confusion_matrix(y_test, nb_results))
+    # print("[DEBUG]: Evaluasi Support Vector Machine: ")
+    # print(accuracy_score(y_test, svm_results))
+    # print(classification_report(y_test, svm_results, zero_division=0))
+    # print(confusion_matrix(y_test, svm_results))
 
-    os.remove(temp_path)  # hapus data temp file excel upload
+    # TODO: format nilai evaluasi agar dapat ditampilkan di front-end
+    nb_eval = {
+        "accuracy": accuracy_score(y_test, nb_results),
+        "classification_report": classification_report(y_test, nb_results, output_dict=True),
+        "confusion_matrix": confusion_matrix(y_test, nb_results).tolist(),
+    }
+    svm_eval = {
+        "accuracy": accuracy_score(y_test, svm_results),
+        "classification_report": classification_report(y_test, svm_results, output_dict=True),
+        "confusion_matrix": confusion_matrix(y_test, svm_results).tolist(),
+    }
 
     # 4.a | konversi data df ke JSON
     data = df.to_dict(orient="records")
 
+    # 5 | Return hasil
+
     return {
         "nb_classification": nb_results.tolist(),  # hasil klasifikasi NB
         "svm_classification": svm_results.tolist(),  # hasil klasifikasi SVM
+        "nb_evaluation": nb_eval,  # evaluasi pengklasifikasian NB
+        "svm_evaluation": svm_eval,  # evaluasi pengklasifikasian SVM
         "data": data,
 
     }
