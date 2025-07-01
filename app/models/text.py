@@ -35,3 +35,9 @@ class RawText(Base):
     tweet_url = Column(String(100))
     user_id_str = Column(String(255))
     username = Column(String(100))
+
+# # type of text (untuk menentukan proses klasifikasi butuh text preprocessing)
+
+
+# class Type(Base):
+#     type: str
