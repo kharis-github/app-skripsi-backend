@@ -114,7 +114,7 @@ async def predict_batch(
         df = df[df['label'] != 2]
 
         # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
-        df = await text_preprocessing(df.head(50))
+        df = await text_preprocessing(df)
 
         # hapus data yang duplikat dan null
         df = df.dropna(subset='stemming')  # hapus data null

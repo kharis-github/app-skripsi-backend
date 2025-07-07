@@ -89,10 +89,10 @@ def stemming_for_tokenized(text_array):
 
 async def text_preprocessing(data: pd.DataFrame):
     # 1 | text cleaning
-    data['cleaning'] = data['full_text'].apply(text_cleaning)
+    data['cleaned'] = data['full_text'].apply(text_cleaning)
     # 2 | normalization
     slang_dict = await get_slang_dict()
-    data['normalized'] = data['cleaning'].apply(
+    data['normalized'] = data['cleaned'].apply(
         lambda x: normalisasi(x, slang_dict))
     # 3 | stopwords removal
     data['stopwords'] = data['normalized'].apply(stopwords_removal)
