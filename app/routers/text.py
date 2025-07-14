@@ -10,6 +10,7 @@ import pandas as pd
 import pyodbc
 import os
 import joblib
+import time
 from app.classification.text import text_cleaning, normalisasi, stopwords_removal, tokenize, stemming, get_slang_dict, text_preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, precision_score, accuracy_score, confusion_matrix
@@ -91,7 +92,8 @@ async def predict_batch(
     file: UploadFile = File(...),  # file excel dataset
     # db: Session = Depends(get_db)
 ):
-
+    # menguji lama eksekusi program
+    start_time = time.time()
     print(f'[DEBUG]: Tipe Sistem: {type}')
 
     # 1 | buka file excel upload, dan simpan di dalam pandas dataframe
@@ -113,13 +115,15 @@ async def predict_batch(
         # hanya gunakan data yang positif atau negatif. netral diabaikan
         df = df[df['label'] != 2]
 
+        print(f'[DEBUG]: Len setelah label netral dihapus: {len(df)}')
+
         # 2 | aplikasi text preprocessing (data cleaning, stopwords removal, stemming)
         df = await text_preprocessing(df)
 
-        # hapus data yang duplikat dan null
-        df = df.dropna(subset='stemming')  # hapus data null
-        df = df.drop_duplicates(subset='stemming')  # hapus data duplikat
-        df = df[df['stemming'] != '']  # hapus string kosong
+        # # hapus data yang duplikat dan null
+        # df = df.dropna(subset='stemming')  # hapus data null
+        # df = df.drop_duplicates(subset='stemming')  # hapus data duplikat
+        # df = df[df['stemming'] != '']  # hapus string kosong
 
     # print(f'[DEBUG]: jumlah data: {len(df)}')
     # print(df.head(10))
@@ -185,6 +189,11 @@ async def predict_batch(
     # 5 | Return hasil
 
     os.remove(temp_path)  # hapus data temp file excel upload
+
+    # end pengujian time
+    end_time = time.time()
+    duration = end_time - start_time
+    print("[DEBUG] Durasi Program: ", duration)
 
     return {
         "classification": df_csf.to_dict(orient="records"),

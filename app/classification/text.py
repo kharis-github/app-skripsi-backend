@@ -5,7 +5,7 @@ import requests
 import ast
 import pandas as pd
 
-more_stop_words = ['kaburajadulu'] # hapus teks kaburajadulu
+more_stop_words = ['kaburajadulu']  # hapus teks kaburajadulu
 # inisialisasi stopword remover
 stop_words = StopWordRemoverFactory().get_stop_words()
 stop_words.extend(more_stop_words)
@@ -90,15 +90,25 @@ def stemming_for_tokenized(text_array):
 async def text_preprocessing(data: pd.DataFrame):
     # 1 | text cleaning
     data['cleaned'] = data['full_text'].apply(text_cleaning)
+
     # 2 | normalization
     slang_dict = await get_slang_dict()
     data['normalized'] = data['cleaned'].apply(
         lambda x: normalisasi(x, slang_dict))
+
+    # hilangkan duplicates (ada data duplikat setelah proses Normalization)
+    data.drop_duplicates(subset=['normalized'], inplace=True)
+    print(
+        f'[DEBUG]: Length setelah drop duplicates (Mestinya 1137): {len(data)}')
+
     # 3 | stopwords removal
     data['stopwords'] = data['normalized'].apply(stopwords_removal)
+
     # 4 | stemming
-    data['stemming'] = data['stopwords'].apply(stemming)
+    data['stemming'] = data['stopwords'].apply(stemming) # paling lama!
+
     # print('[DEBUG]: Selesai proses stemming')
     # print(data['stemming'].head(20))
+
     # 5 | return
     return data  # kembalikan hasil bersih data, dan hasil proses-proses lainnya
