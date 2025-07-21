@@ -154,11 +154,13 @@ async def predict_batch(
         "accuracy": accuracy_score(y_test, nb_results),
         "classification_report": classification_report(y_test, nb_results, output_dict=True),
         "confusion_matrix": confusion_matrix(y_test, nb_results).tolist(),
+        "name": "Naive Bayes",
     }
     svm_eval = {
         "accuracy": accuracy_score(y_test, svm_results),
         "classification_report": classification_report(y_test, svm_results, output_dict=True),
         "confusion_matrix": confusion_matrix(y_test, svm_results).tolist(),
+        "name": "Support Vector Machine",
     }
 
     # generate heatmap untuk confusion matrix
